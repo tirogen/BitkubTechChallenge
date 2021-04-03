@@ -1,8 +1,6 @@
 import Head from "next/head";
-import { useRouter } from "next/router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import axios from "axios";
-import { makeStyles } from "@material-ui/core/styles";
 import Table from "@material-ui/core/Table";
 import TableBody from "@material-ui/core/TableBody";
 import TableCell from "@material-ui/core/TableCell";
@@ -10,12 +8,13 @@ import TableContainer from "@material-ui/core/TableContainer";
 import TableHead from "@material-ui/core/TableHead";
 import TableRow from "@material-ui/core/TableRow";
 import Paper from "@material-ui/core/Paper";
-import Grid from "@material-ui/core/Grid";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import TextField from "@material-ui/core/TextField";
 import Button from "@material-ui/core/Button";
+import { toArray, sortBy } from "lodash";
 
 type TX = {
+  blockNumber: string;
   hash: string;
   from: string;
   to: string;
@@ -28,9 +27,13 @@ const ENDPOINT =
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
-interface Balances {
+type Balances = {
   [key: string]: number;
-}
+};
+
+type Hashes = {
+  [key: string]: TX;
+};
 
 type BalancesResult = {
   address: string;
@@ -45,9 +48,8 @@ export const Home = () => {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     let toDoAddress: string[] = [address];
-    const balances: Balances = {};
-    const hashes: any = {};
-    let allHash: TX[] = [];
+    const hashes: Hashes = {};
+    let bitkubAddress = "";
     while (toDoAddress.length > 0) {
       console.log(toDoAddress);
       let todo = toDoAddress.pop();
@@ -59,48 +61,56 @@ export const Home = () => {
         await delay(waitTime);
         waitTime = waitTime + 100;
       } while (data.status === "0");
-
       let results: TX[] = data.result;
       for (let result of results) {
-        if (result.tokenSymbol === "BKTC") {
-          if (!(result.hash in hashes)) {
-            allHash.push(result);
-            hashes[result.hash] = result;
-            if (result.to in balances) {
-              balances[result.to] = balances[result.to] + Number(result.value);
-            } else {
-              balances[result.to] = Number(result.value);
-              toDoAddress.push(result.to);
-            }
-            if (result.from in balances) {
-              balances[result.from] = balances[result.from] - Number(result.value);
-            }
-          }
+        if (result.tokenSymbol === "BKTC" && !(result.hash in hashes)) {
+          if (!bitkubAddress && result.to.toLowerCase() === address.toLowerCase()) bitkubAddress = result.from;
+          hashes[result.hash] = result;
+          toDoAddress.push(result.to);
         }
       }
     }
-    setRows(allHash);
 
-    let tmp: BalancesResult[] = [];
-    for (let key in balances) {
-      tmp.push({
-        address: key,
-        balance: balances[key],
+    const hashesArray = toArray(hashes);
+    const hashesSort = sortBy(hashesArray, "blockNumber");
+    const balances: Balances = {};
+    for (let hash of hashesSort) {
+      if (hash.from in balances) {
+        balances[hash.from] = balances[hash.from] - Number(hash.value);
+      } else {
+        balances[hash.from] = -Number(hash.value);
+      }
+      if (hash.to in balances) {
+        balances[hash.to] = balances[hash.to] + Number(hash.value);
+      } else {
+        balances[hash.to] = Number(hash.value);
+      }
+    }
+
+    let balancesResult: BalancesResult[] = [];
+    for (let address in balances) {
+      if (address === bitkubAddress) continue;
+      balancesResult.push({
+        address,
+        balance: balances[address],
       });
     }
 
-    setCurrentBalances(tmp);
+    const hasheshResult = hashesSort.filter((hash) => hash.from !== bitkubAddress);
+
+    setRows(hasheshResult);
+    setCurrentBalances(balancesResult);
     setIsLoading(false);
   }, [address]);
 
   return (
     <>
       <Head>
-        <title>BitkubTechChallenge</title>
+        <title>Bitkub Tech Challenge</title>
       </Head>
       <div>
         {isLoading ? (
-          <div className="flex items-center justify-items-center w-full h-full">
+          <div className="flex flex-col items-center justify-items-center w-full h-full">
             <CircularProgress className="m-auto" />
           </div>
         ) : (
@@ -113,7 +123,6 @@ export const Home = () => {
                   setAddress(e.target.value);
                 }}
                 label="Address"
-                helperText="Address"
                 variant="outlined"
               />
               <Button variant="contained" color="primary" onClick={fetchData}>
@@ -121,15 +130,14 @@ export const Home = () => {
               </Button>
             </div>
             {rows.length > 0 && (
-              <TableContainer component={Paper}>
               <TableContainer component={Paper} className="mt-5">
-                <Table ria-label="simple table">
+                <Table>
                   <TableHead>
                     <TableRow>
                       <TableCell></TableCell>
-                      <TableCell align="left">Tx hash</TableCell>
-                      <TableCell align="left">form (address)</TableCell>
-                      <TableCell align="left">to (address)</TableCell>
+                      <TableCell align="left">TX hash</TableCell>
+                      <TableCell align="left">Form (address)</TableCell>
+                      <TableCell align="left">To (address)</TableCell>
                       <TableCell align="left">Amount transfer</TableCell>
                     </TableRow>
                   </TableHead>
@@ -151,7 +159,7 @@ export const Home = () => {
             )}
             {currentBalances.length > 0 && (
               <TableContainer component={Paper} className="mt-5">
-                <Table ria-label="simple table">
+                <Table>
                   <TableHead>
                     <TableRow>
                       <TableCell></TableCell>
