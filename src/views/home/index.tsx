@@ -122,6 +122,7 @@ export const Home = () => {
             </div>
             {rows.length > 0 && (
               <TableContainer component={Paper}>
+              <TableContainer component={Paper} className="mt-5">
                 <Table ria-label="simple table">
                   <TableHead>
                     <TableRow>
@@ -141,7 +142,7 @@ export const Home = () => {
                         <TableCell align="left">{row.hash}</TableCell>
                         <TableCell align="left">{row.from}</TableCell>
                         <TableCell align="left">{row.to}</TableCell>
-                        <TableCell align="left">{Number(row.value) / 10 ** 8}</TableCell>
+                        <TableCell align="left">{Number(row.value) / 10 ** 18}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -165,7 +166,7 @@ export const Home = () => {
                           {i + 1}
                         </TableCell>
                         <TableCell align="left">{row.address}</TableCell>
-                        <TableCell align="left">{row.balance}</TableCell>
+                        <TableCell align="left">{row.balance / 10 ** 18}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
