@@ -17,7 +17,6 @@
     "express": "^4.17.1",
     "gray-matter": "4.0.2",
     "lodash": "^4.17.21",
-    "material-ui": "^0.20.2",
     "mobx": "^6.1.8",
     "mobx-react-lite": "^3.2.0",
     "next": "latest",
